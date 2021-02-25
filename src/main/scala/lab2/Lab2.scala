@@ -15,30 +15,40 @@ object Lab2 {
    *
    * Створює множину з одного заданого елемента.
    */
-  def singletonSet(elem: Int): Set = ???
+  def singletonSet(elem: Int): Set = {
+    (x: Int) => x == elem
+  }
 
   /**
    * Повертає об'єднання двох заданих множин,
    * множину всіх елементів, що знаходяться або в 's' або 't'.
    */
-  def union(s: Set, t: Set): Set = ???
+  def union(s: Set, t: Set): Set = {
+    (x: Int) => s(x) || t(x)
+  }
 
   /**
    * Повертає перетин двох заданих множин,
    * множину всіх елементів, що знаходяться як у 's', так і у 't'.
    */
-  def intersect(s: Set, t: Set): Set = ???
+  def intersect(s: Set, t: Set): Set = {
+    (x: Int) => s(x) && t(x)
+  }
 
   /**
    * Повертає різницю двох заданих множин,
    * множину усіх елементів 's', які не знаходяться в 't'.
    */
-  def diff(s: Set, t: Set): Set = ???
+  def diff(s: Set, t: Set): Set = {
+    (x: Int) => s(x) && !t(x)
+  }
 
   /**
    * Повертає підмножину 's', яка задовольняє предикат 'p'.
    */
-  def filter(s: Set, p: Int => Boolean): Set = ???
+  def filter(s: Set, p: Int => Boolean): Set = {
+    intersect(s, p)
+  }
 
   /**
    * обмежує значення "forall" і "exist" до +/- 1000.
@@ -50,24 +60,46 @@ object Lab2 {
    */
   def forall(s: Set, p: Int => Boolean): Boolean = {
     def iter(a: Int): Boolean = {
-      if (???) ???
-      else if (???) ???
-      else iter(???)
+      if (a >= bound)
+        true
+      else if (diff(s, p)(a))
+        false
+      else iter(a + 1)
     }
 
-    iter(???)
+    iter(-bound)
   }
 
   /**
    * Перевіряє чи існує хоча би одне ціле число в множині 's'
    * для якого виконується 'p'.
    */
-  def exists(s: Set, p: Int => Boolean): Boolean = ???
+  def exists(s: Set, p: Int => Boolean): Boolean = {
+    def iter(a: Int): Boolean = {
+      if (a >= bound)
+        false
+      else if (s(a) && p(a))
+        true
+      else iter(a + 1)
+    }
+
+    iter(-bound)
+  }
 
   /**
    * Повертає перетворений набір, застосовуючи 'f' до кожного елемента 's'.
    */
-  def map(s: Set, f: Int => Int): Set = ???
+  def map(s: Set, f: Int => Int): Set = {
+    def iter(a: Int): Set = {
+      if (a >= bound)
+        (x: Int) => false
+      else if (s(a))
+        union(singletonSet(f(a)), iter(a + 1))
+      else iter(a + 1)
+    }
+
+    iter(-bound)
+  }
 
   /**
    * Відображає вміст набору.
