@@ -62,6 +62,14 @@ class TweetSetSpec extends AnyFreeSpec with Matchers {
     val trends = set5.descendingByRetweet
     trends.isEmpty shouldBe false
     trends.head.user == "a" || trends.head.user == "b" shouldBe true
+    trends.tail.head.user == "a" || trends.tail.head.user == "b" shouldBe true
+    trends.tail.tail.head.user == "d" shouldBe true
+    trends.tail.tail.tail.head.user == "c" shouldBe true
+  }
+
+  "GoogleVsApple" in {
+    GoogleVsApple.trending.length shouldBe 179
+    GoogleVsApple.trending.head.retweets shouldBe 321
   }
 
 }

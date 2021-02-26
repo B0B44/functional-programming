@@ -29,7 +29,7 @@ abstract class TweetSet {
    * Питання: чи можемо ми реалізувати цей метод тут, чи він повинен залишитися абстрактним
    * і бути реалізованим в підкласах?
    **/
-  def filter(p: Tweet => Boolean): TweetSet = ???
+  def filter(p: Tweet => Boolean): TweetSet = filterAcc(p, Empty)
 
   /**
    * Це метод-хелпер для filter який містить акумуляту для твітів.
@@ -42,7 +42,7 @@ abstract class TweetSet {
    * Питання: чи можемо ми реалізувати цей метод тут, чи він повинен залишитися абстрактним
    * і бути реалізованим в підкласах?
    */
-  def union(that: TweetSet): TweetSet = ???
+  def union(that: TweetSet): TweetSet
 
   /**
    * Повертає твіт, який має найбільшу кількість ретвітів.
@@ -52,7 +52,15 @@ abstract class TweetSet {
    * Питання: чи можемо ми реалізувати цей метод тут, чи він повинен залишитися абстрактним
    * і бути реалізованим в підкласах?
    */
-  def mostRetweeted: Tweet = ???
+  def mostRetweeted: Tweet = {
+    this.tail.mostRetweetedAcc(this.head)
+  }
+
+  def mostRetweetedAcc(curr: Tweet): Tweet = {
+    if (this.isEmpty) curr
+    else if (this.head.retweets > curr.retweets) this.tail.mostRetweetedAcc(this.head)
+    else this.tail.mostRetweetedAcc(curr)
+  }
 
   /**
    * Повертає список, який містить всі твіти з множини, відсортовані в низхідному порядку по кількості ретвітів.
@@ -61,7 +69,17 @@ abstract class TweetSet {
    * Питання: чи можемо ми реалізувати цей метод тут, чи він повинен залишитися абстрактним
    * і бути реалізованим в підкласах?
    */
-  def descendingByRetweet: TweetList = ???
+  def descendingByRetweet: TweetList = {
+    if (isEmpty) Nil
+    else {
+      val max = mostRetweeted
+      new Cons(max, remove(max).descendingByRetweet)
+    }
+  }
+
+  def isEmpty: Boolean
+  def head: Tweet
+  def tail: TweetSet
 
   /**
    * Наступні методи вже реалізовані
@@ -91,7 +109,9 @@ abstract class TweetSet {
 }
 
 object Empty extends TweetSet {
-  def filterAcc(p: Tweet => Boolean, acc: TweetSet): TweetSet = ???
+  def filterAcc(p: Tweet => Boolean, acc: TweetSet): TweetSet = acc
+
+  def union(that: TweetSet): TweetSet = that
 
   /**
    * Наступні методи вже реалізовані
@@ -104,11 +124,19 @@ object Empty extends TweetSet {
   def remove(tweet: Tweet): TweetSet = this
 
   def foreach(f: Tweet => Unit): Unit = ()
+
+  def head = throw new Exception("there is no head in Empty")
+  def tail = throw new Exception("there is no tail in Empty")
+  def isEmpty: Boolean = true
 }
 
 class NonEmpty(elem: Tweet, left: TweetSet, right: TweetSet) extends TweetSet {
 
-  def filterAcc(p: Tweet => Boolean, acc: TweetSet): TweetSet = ???
+  def filterAcc(p: Tweet => Boolean, acc: TweetSet): TweetSet = {
+    val leftright = left.filterAcc(p, right.filterAcc(p, acc))
+    if (p(elem)) leftright.add(elem)
+    else leftright
+  }
 
   /**
    * Наступні методи вже реалізовані
@@ -124,6 +152,12 @@ class NonEmpty(elem: Tweet, left: TweetSet, right: TweetSet) extends TweetSet {
     else if (elem.text < x.text) new NonEmpty(elem, left, right.add(x))
     else this
   }
+
+  def union(that: TweetSet): TweetSet = that.filterAcc(twit => true, this)
+
+  def head = if (left.isEmpty) elem else left.head
+  def tail = if (left.isEmpty) right else new NonEmpty(elem, left.tail, right)
+  def isEmpty: Boolean = false
 
   def remove(tw: Tweet): TweetSet =
     if (tw.text < elem.text) new NonEmpty(elem, left.remove(tw), right)
@@ -144,6 +178,8 @@ trait TweetList {
 
   def isEmpty: Boolean
 
+  def length: Int
+
   def foreach(f: Tweet => Unit): Unit =
     if (!isEmpty) {
       f(head)
@@ -157,10 +193,12 @@ object Nil extends TweetList {
   def tail = throw new java.util.NoSuchElementException("tail of EmptyList")
 
   def isEmpty = true
+  def length = 0
 }
 
 class Cons(val head: Tweet, val tail: TweetList) extends TweetList {
   def isEmpty = false
+  def length = tail.length + 1
 }
 
 
@@ -169,7 +207,9 @@ object GoogleVsApple {
   val apple = List("ios", "iOS", "iphone", "iPhone", "ipad", "iPad")
 
   // Метод exists на списках і contains на стрічках будуть корисними
-  def filterTweetsByKeysInText(keys: List[String]): TweetSet = TweetLoader.allTweets.filter(t => ???)
+  def filterTweetsByKeysInText(keys: List[String]): TweetSet = {
+    TweetLoader.allTweets.filter(t => keys.exists(key => t.text.contains(key)))
+  }
 
   lazy val googleTweets: TweetSet = filterTweetsByKeysInText(google)
   lazy val appleTweets: TweetSet = filterTweetsByKeysInText(apple)
