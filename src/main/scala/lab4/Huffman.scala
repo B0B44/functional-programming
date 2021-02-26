@@ -20,9 +20,15 @@ object Huffman {
 
 
   // Частина 1: Основи
-  def weight(tree: CodeTree): Int = ???
+  def weight(tree: CodeTree): Int = tree match {
+    case Fork(_, _, _, w) => w
+    case Leaf(_, w) => w
+  }
 
-  def chars(tree: CodeTree): List[Char] = ???
+  def chars(tree: CodeTree): List[Char] = tree match {
+    case Fork(_, _, c, _) => c
+    case Leaf(c, _) => List(c)
+  }
 
   def makeCodeTree(left: CodeTree, right: CodeTree): CodeTree =
     Fork(left, right, chars(left) ++ chars(right), weight(left) + weight(right))
@@ -33,7 +39,7 @@ object Huffman {
    * На даній лабі ми працюємо зі списком символів. Ця функція допоможе перетворити
    * довільну стрічку у список символів.
    */
-  def strToChars(str: String): List[Char] = ???
+  def strToChars(str: String): List[Char] = str.toList
 
   /**
    * Ця функція обчислює кількіть повторень кожного символу зі списку `chars`.
@@ -69,7 +75,15 @@ object Huffman {
    *
    * Увага! Реалізуйте функцію БЕЗ використання groupBy.
    */
-  def times(chars: List[Char]): List[(Char, Int)] = ???
+  def times(chars: List[Char]): List[(Char, Int)] = {
+    var result: List[(Char, Int)] = List()
+    chars.foldLeft(Nil: List[Char]) {(acc, next) => if (acc contains next) acc else next :: acc}.foreach(c => {
+      var sum: Int = 0
+      chars.foreach(ch => if (ch.equals(c)) {sum += 1})
+      result = (c, sum) :: result
+    })
+    result
+  }
 
   /**
    * Повертає список `Leaf` листків для вхідної таблиці `freqs`.
@@ -88,7 +102,12 @@ object Huffman {
    * Ця функція повинна вставляти дерево `tree` у відсортований по вагам
    * (по зростанню) список `trees` таким чином, щоб порядк зберігся
    */
-  def insert(tree: CodeTree, trees: List[CodeTree]): List[CodeTree] = ???
+  def insert(tree: CodeTree, trees: List[CodeTree]): List[CodeTree] = {
+    if (trees.length == 0 || weight(tree) <= weight(trees.head))
+      tree :: trees
+    else
+      trees.head :: insert(tree, trees.tail)
+  }
 
   /**
    * Ця функція повинна брати два перші дерева з відсортованого по вагам (по зростанню)
@@ -98,7 +117,12 @@ object Huffman {
    *
    * Якщо `trees` це список з менше ніж двох елементів, то такий список повинен бути повернутим без змін.
    */
-  def combine(trees: List[CodeTree]): List[CodeTree] = ???
+  def combine(trees: List[CodeTree]): List[CodeTree] = {
+    if (trees.length <= 1)
+      trees
+    else
+      combine(insert(new Fork(trees.head, trees.tail.head, chars(trees.head) ::: chars(trees.tail.head), weight(trees.head) + weight(trees.tail.head)),trees.tail.tail))
+  }
 
 
   /**
@@ -107,7 +131,8 @@ object Huffman {
    * Текст `chars` є довільним. Ця функція спочатку отримує частоту появлень
    * символів тексту і потім створює кодове дерево за допомогою цього.
    */
-  def createCodeTree(chars: List[Char]): CodeTree = ???
+  def createCodeTree(chars: List[Char]): CodeTree =
+    combine(makeOrderedLeafList(times(chars))).head
 
 
   // Частина 3: Декодування
@@ -118,7 +143,15 @@ object Huffman {
    * Ця функція декодує список бітів `bits`, використовуючи кодове дерево `tree`
    * і повертає результуючий список декодованих символів.
    */
-  def decode(tree: CodeTree, bits: List[Bit]): List[Char] = ???
+  def decode(tree: CodeTree, bits: List[Bit]): List[Char] = {
+    def traverse(remaining: CodeTree, bits: List[Bit]): List[Char] = remaining match {
+      case Leaf(c, _) if bits.isEmpty => List(c)
+      case Leaf(c, _) => c :: traverse(tree, bits)
+      case Fork(left, right, _, _) if bits.head == 0 => traverse(left, bits.tail)
+      case Fork(left, right, _, _) => traverse(right, bits.tail)
+    }
+    traverse(tree, bits)
+  }
 
   /**
    * Кодове дерево для французької мови, зегеровано за допомогою
@@ -143,7 +176,15 @@ object Huffman {
   /**
    * Ця функція закодовує `text` використовуючи дерево `tree` у послідовність бітів.
    */
-  def encode(tree: CodeTree)(text: List[Char]): List[Bit] = ???
+  def encode(tree: CodeTree)(text: List[Char]): List[Bit] = {
+    def lookup(tree:  CodeTree)(c: Char): List[Bit] = tree match {
+      case Leaf(_, _) => List()
+      case Fork(left, right, _, _) if chars(left).contains(c) => 0 :: lookup(left)(c)
+      case Fork(left, right, _, _) => 1 :: lookup(right)(c)
+    }
+
+    text.map(lookup(tree)(_)).flatten
+  }
 
 
   // Частина 4б: Кодування з використанням кодової таблиці
@@ -153,7 +194,9 @@ object Huffman {
   /**
    * Ця функція повертає список бітів який представляє символ `char` в кодовій таблиці `table`
    */
-  def codeBits(table: CodeTable)(char: Char): List[Bit] = ???
+  def codeBits(table: CodeTable)(char: Char): List[Bit] = {
+    table.filter((code) => code._1 == char ).head._2
+  }
 
   /**
    * На основі кодового дерева створює кодову таблицю,
@@ -163,7 +206,10 @@ object Huffman {
    * для нього можна побудувати таблицю кодування. Викоистовуючи кодові таблиці для піддерев,
    * подумайте як можна побудувати загальну таблицю для всього дерева.
    */
-  def convert(tree: CodeTree): CodeTable = ???
+  def convert(tree: CodeTree): CodeTable = {
+    val acc: CodeTable = List()
+    chars(tree).foldLeft(acc)((acc, char) => (char, encode(tree)(List(char))) :: acc)
+  }
 
   /**
    * Ця функція кодує вхідний `text` використовуючи кодове дерево `tree`.
@@ -171,5 +217,7 @@ object Huffman {
    * Для пришвидшення процесу кодування, спочатку перетворіть кодове дерево в таблицю,
    * а потім використайте її для кодування самого тексту.
    */
-  def quickEncode(tree: CodeTree)(text: List[Char]): List[Bit] = ???
+  def quickEncode(tree: CodeTree)(text: List[Char]): List[Bit] = {
+    text.map(codeBits(convert(tree))(_)).flatten
+  }
 }
